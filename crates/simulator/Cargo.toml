@@ -1,0 +1,10 @@
+[package]
+name = "simulator"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ctrlc = "3.4.7"
+embedded-graphics = { workspace = true }
+embedded-graphics-simulator = "0.7.0"
+logic = { path = "../logic" }
