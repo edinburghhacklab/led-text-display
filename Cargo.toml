@@ -1,7 +1,9 @@
 [workspace]
-members = [ "crates/logic",
-    "crates/runner"
-, "crates/simulator"]
+members = [
+    "crates/logic",
+    "crates/runner",
+    "crates/simulator"
+]
 resolver = "3"
 
 [workspace.dependencies]
