@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use embedded_graphics::{
     pixelcolor::Rgb888,
     prelude::*,
@@ -11,13 +13,19 @@ pub trait Screen<D: DrawTarget<Color = Rgb888>> {
     /// Draw a frame of the screen to the given display
     fn draw(&mut self, display: &mut D) -> Result<(), D::Error>;
 
-    /// Return true if the screen wants to keep drawing things
-    fn wants_redraw(&self) -> bool {
-        true
+    /// Returns the desired duration for a single continuous display of this screen
+    fn single_display_duration(&self, display: &D) -> Duration {
+        Duration::from_secs(5)
     }
 
-    /// Called when screen is no longer active on display
-    fn paused(&mut self) {}
+    /// Called after the screen stops being actively displayed, with the duration it was displayed for.
+    /// [`Self::should_remove`] will be called after this.
+    fn paused(&mut self, for_dur: Duration) {}
+
+    /// Returns true if the screen wants to be removed from the active rotation
+    fn should_remove(&self) -> bool {
+        false
+    }
 }
 
 pub struct TestScreen;
@@ -48,5 +56,10 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TestScreen {
         }
 
         Ok(())
+    }
+
+    // always remove after one display
+    fn should_remove(&self) -> bool {
+        true
     }
 }

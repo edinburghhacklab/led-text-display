@@ -1,7 +1,7 @@
 use display::Display;
 use logic::{
     screens::{TestScreen, TextScreen},
-    DisplayLogic, DisplayedScreen,
+    DisplayLogic,
 };
 use rpi_led_panel::{HardwareMapping, NamedPixelMapperType, RGBMatrix, RGBMatrixConfig};
 
@@ -25,13 +25,11 @@ fn main() {
     };
 
     let mut display_logic = DisplayLogic::default();
-    display_logic.add(DisplayedScreen::new(Box::new(TextScreen::with_text(
-        "Hello, World!".to_string(),
-    ))));
-    display_logic.add(DisplayedScreen::new(Box::new(TextScreen::with_text(
+    display_logic.add(Box::new(TextScreen::with_text("Hello, World!".to_string())));
+    display_logic.add(Box::new(TextScreen::with_text(
         "some much longer text that goes off the screen".to_string(),
-    ))));
-    display_logic.add(DisplayedScreen::new(Box::new(TestScreen)));
+    )));
+    display_logic.add(Box::new(TestScreen));
 
     let (matrix, canvas) = RGBMatrix::new(config, 0).expect("Matrix initialization failed");
     let display = Display::new(matrix, canvas, display_logic);

@@ -13,6 +13,7 @@ use super::Screen;
 pub struct TextScreen {
     text: String,
     style: MonoTextStyle<'static, Rgb888>,
+
     offset: i32,
     offset_last_incremented: Option<Instant>,
     offset_inc_interval: Duration,
@@ -34,13 +35,26 @@ impl TextScreen {
     pub fn with_text(text: String) -> Self {
         Self::new(text, MonoTextStyle::new(&FONT_10X20, Rgb888::WHITE))
     }
+
+    fn text_total_width(&self) -> u32 {
+        self.style.font.character_size.width * self.text.len() as u32
+    }
+
+    fn max_offset_for<D: DrawTarget<Color = Rgb888>>(&self, display: &D) -> Option<u32> {
+        let display_width = display.bounding_box().size.width;
+        // no max offset when we're not scrolling
+        if self.text_total_width() <= display_width {
+            return None;
+        }
+
+        Some(display_width + self.text_total_width() + 10)
+    }
 }
 
 impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TextScreen {
     fn draw(&mut self, display: &mut D) -> Result<(), D::Error> {
-        let text_total_width = self.style.font.character_size.width * self.text.len() as u32;
-
-        let (position, text_style) = if text_total_width <= display.bounding_box().size.width {
+        let (position, text_style) = if self.text_total_width() <= display.bounding_box().size.width
+        {
             // no need for scrolling
             (
                 display.bounding_box().center(),
@@ -55,7 +69,7 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TextScreen {
                 if since_last_inc >= self.offset_inc_interval {
                     self.offset = (self.offset
                         + (since_last_inc.div_duration_f32(self.offset_inc_interval)) as i32)
-                        % (display.bounding_box().size.width + text_total_width + 10) as i32;
+                        % self.max_offset_for(display).unwrap() as i32;
                     self.offset_last_incremented = Some(Instant::now());
                 }
             } else {
@@ -76,7 +90,14 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TextScreen {
         Ok(())
     }
 
-    fn paused(&mut self) {
+    fn single_display_duration(&self, display: &D) -> Duration {
+        match self.max_offset_for(display) {
+            Some(o) => o * self.offset_inc_interval + Duration::from_millis(100),
+            None => Duration::from_secs(5),
+        }
+    }
+
+    fn paused(&mut self, _for_dur: Duration) {
         self.offset_last_incremented = None;
     }
 }
