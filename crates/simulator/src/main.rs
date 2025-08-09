@@ -13,6 +13,8 @@ use std::{
 const TARGET_FRAMERATE: u64 = 120;
 
 fn main() -> Result<(), core::convert::Infallible> {
+    env_logger::init();
+
     let mut display = SimulatorDisplay::<Rgb888>::new(Size::new(192, 32));
 
     let keep_going = Arc::new(AtomicBool::new(true));

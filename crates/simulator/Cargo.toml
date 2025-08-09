@@ -8,3 +8,5 @@ ctrlc = "3.4.7"
 embedded-graphics = { workspace = true }
 embedded-graphics-simulator = "0.7.0"
 logic = { path = "../logic" }
+log = { workspace = true }
+env_logger = { workspace = true }

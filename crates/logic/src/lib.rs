@@ -7,6 +7,7 @@ use embedded_graphics::{
     pixelcolor::Rgb888,
     prelude::{DrawTarget, RgbColor},
 };
+use log::debug;
 use screens::Screen;
 
 pub mod screens;
@@ -43,12 +44,20 @@ impl<D: DrawTarget<Color = Rgb888>> DisplayLogic<D> {
         // See if we need to move on to the next screen, and/or remove this screen.
         let last_screen_change = self.last_screen_change.get_or_insert(Instant::now());
         let displayed_for = Instant::now() - *last_screen_change;
-        if displayed_for >= screen.single_display_duration(display) {
+        let single_display_duration = screen.single_display_duration(display);
+        if displayed_for >= single_display_duration {
+            debug!(
+                "screen displayed for {:?} out of {:?}",
+                displayed_for, single_display_duration
+            );
+
             // Move to the next screen, possibly removing this one.
             screen.paused(displayed_for);
             if screen.should_remove() {
+                debug!("removing current screen");
                 self.curr_screens.pop_front();
             } else {
+                debug!("going to next screen");
                 self.curr_screens.rotate_left(1);
             }
 
