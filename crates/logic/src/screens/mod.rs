@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt::Debug, time::Duration};
 
 use embedded_graphics::{
     pixelcolor::Rgb888,
@@ -9,18 +9,18 @@ use embedded_graphics::{
 mod text;
 pub use text::*;
 
-pub trait Screen<D: DrawTarget<Color = Rgb888>> {
+pub trait Screen<D: DrawTarget<Color = Rgb888>>: Send + Debug {
     /// Draw a frame of the screen to the given display
     fn draw(&mut self, display: &mut D) -> Result<(), D::Error>;
 
     /// Returns the desired duration for a single continuous display of this screen
-    fn single_display_duration(&self, display: &D) -> Duration {
+    fn single_display_duration(&self, _display: &D) -> Duration {
         Duration::from_secs(5)
     }
 
     /// Called after the screen stops being actively displayed, with the duration it was displayed for.
     /// [`Self::should_remove`] will be called after this.
-    fn paused(&mut self, for_dur: Duration) {}
+    fn paused(&mut self, _for_dur: Duration) {}
 
     /// Returns true if the screen wants to be removed from the active rotation
     fn should_remove(&self) -> bool {
@@ -28,6 +28,7 @@ pub trait Screen<D: DrawTarget<Color = Rgb888>> {
     }
 }
 
+#[derive(Debug)]
 pub struct TestScreen;
 impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TestScreen {
     fn draw(&mut self, display: &mut D) -> Result<(), D::Error> {

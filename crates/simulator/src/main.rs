@@ -3,8 +3,7 @@ use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay, Windo
 use logic::{screens::*, DisplayLogic};
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
+        atomic::{AtomicBool, Ordering}, mpsc, Arc
     },
     thread::sleep,
     time::{Duration, Instant},
@@ -32,11 +31,13 @@ fn main() -> Result<(), core::convert::Infallible> {
         .build();
     let mut window = Window::new("LED display simulator", &output_settings);
 
-    let mut display_logic = DisplayLogic::default();
+    let (_, recv) = mpsc::channel();
+    let mut display_logic = DisplayLogic::new(recv);
 
-    display_logic.add(Box::new(TextScreen::with_text("Hello, World!".to_string())));
+    display_logic.add(Box::new(TextScreen::with_text("Hello, World!".to_string(), None)));
     display_logic.add(Box::new(TextScreen::with_text(
         "some much longer text that goes off the screen".to_string(),
+        None
     )));
     display_logic.add(Box::new(TestScreen));
 

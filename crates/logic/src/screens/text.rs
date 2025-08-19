@@ -9,6 +9,7 @@ use embedded_graphics::{
 
 use super::Screen;
 
+#[derive(Debug)]
 /// A screen that just displays a line of text.
 pub struct TextScreen {
     text: String,
@@ -17,23 +18,34 @@ pub struct TextScreen {
     offset: i32,
     offset_last_incremented: Option<Instant>,
     offset_inc_interval: Duration,
+
+    show_count: u8,
 }
 
 impl TextScreen {
     /// Show the given text in a particular style.
-    pub fn new(text: String, style: MonoTextStyle<'static, Rgb888>) -> Self {
+    pub fn new(
+        text: String,
+        style: MonoTextStyle<'static, Rgb888>,
+        show_count: Option<u8>,
+    ) -> Self {
         Self {
             text: text.replace("\n", ""),
             style,
             offset: 0,
             offset_last_incremented: None,
-            offset_inc_interval: Duration::from_millis(15),
+            offset_inc_interval: Duration::from_millis(8),
+            show_count: show_count.unwrap_or(3) + 1,
         }
     }
 
     /// Show the given text with a white font.
-    pub fn with_text(text: String) -> Self {
-        Self::new(text, MonoTextStyle::new(&FONT_10X20, Rgb888::WHITE))
+    pub fn with_text(text: String, show_count: Option<u8>) -> Self {
+        Self::new(
+            text,
+            MonoTextStyle::new(&FONT_10X20, Rgb888::WHITE),
+            show_count,
+        )
     }
 
     fn text_total_width(&self) -> u32 {
@@ -67,14 +79,19 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TextScreen {
             if let Some(last_inc) = self.offset_last_incremented {
                 let since_last_inc = Instant::now() - last_inc;
                 if since_last_inc >= self.offset_inc_interval {
-                    self.offset = (self.offset
-                        + (since_last_inc.div_duration_f32(self.offset_inc_interval)) as i32)
-                        % self.max_offset_for(display).unwrap() as i32;
-                    self.offset_last_incremented = Some(Instant::now());
+                    let num_elapsed =
+                        since_last_inc.div_duration_f32(self.offset_inc_interval) as i32;
+                    self.offset =
+                        (self.offset + num_elapsed) % self.max_offset_for(display).unwrap() as i32;
+                    self.offset_last_incremented = Some(
+                        Instant::now()
+                            - (since_last_inc - (self.offset_inc_interval * num_elapsed as u32)),
+                    );
                 }
             } else {
                 self.offset_last_incremented = Some(Instant::now());
             }
+
             (
                 Point::new(
                     display.bounding_box().bottom_right().unwrap().x - self.offset,
@@ -99,5 +116,10 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TextScreen {
 
     fn paused(&mut self, _for_dur: Duration) {
         self.offset_last_incremented = None;
+        self.show_count = self.show_count.saturating_sub(1);
+    }
+
+    fn should_remove(&self) -> bool {
+        self.show_count == 0
     }
 }

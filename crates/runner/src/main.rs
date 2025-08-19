@@ -1,13 +1,16 @@
+use std::{env, sync::mpsc, thread};
+
 use display::Display;
-use logic::{
-    screens::{TestScreen, TextScreen},
-    DisplayLogic,
-};
+use logic::{screens::TestScreen, DisplayLogic};
+use mqtt::MQTTListener;
 use rpi_led_panel::{HardwareMapping, NamedPixelMapperType, RGBMatrix, RGBMatrixConfig};
 
 mod display;
+mod mqtt;
 
 fn main() {
+    env_logger::init();
+
     let config: RGBMatrixConfig = {
         let mut c = RGBMatrixConfig::default();
         c.hardware_mapping = HardwareMapping::adafruit_hat_pwm();
@@ -24,14 +27,26 @@ fn main() {
         c
     };
 
-    let mut display_logic = DisplayLogic::default();
-    display_logic.add(Box::new(TextScreen::with_text("Hello, World!".to_string())));
-    display_logic.add(Box::new(TextScreen::with_text(
-        "some much longer text that goes off the screen".to_string(),
-    )));
+    let (send, recv) = mpsc::channel();
+    let mqtt = MQTTListener::new(
+        env::var("MQTT_HOST")
+            .unwrap_or_else(|_| "mqtt.hacklab".to_string())
+            .as_str(),
+        send,
+    )
+    .unwrap();
+
+    let mut display_logic = DisplayLogic::new(recv);
     display_logic.add(Box::new(TestScreen));
 
     let (matrix, canvas) = RGBMatrix::new(config, 0).expect("Matrix initialization failed");
     let display = Display::new(matrix, canvas, display_logic);
-    display.main_loop().unwrap();
+    thread::scope(move |scope| {
+        scope.spawn(move || {
+            mqtt.main_loop();
+        });
+        scope.spawn(move || {
+            display.main_loop().unwrap();
+        });
+    });
 }
