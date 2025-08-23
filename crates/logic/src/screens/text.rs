@@ -59,7 +59,11 @@ impl TextScreen {
             return None;
         }
 
-        Some(display_width + self.text_total_width() + 10)
+        Some(
+            display_width
+                + self.text_total_width()
+                + (Duration::from_millis(250).div_duration_f32(self.offset_inc_interval) as u32),
+        )
     }
 }
 
@@ -109,7 +113,7 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TextScreen {
 
     fn single_display_duration(&self, display: &D) -> Duration {
         match self.max_offset_for(display) {
-            Some(o) => o * self.offset_inc_interval + Duration::from_millis(100),
+            Some(o) => o * self.offset_inc_interval,
             None => Duration::from_secs(5),
         }
     }
