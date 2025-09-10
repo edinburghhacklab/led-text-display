@@ -20,7 +20,7 @@ fn main() {
         c.pwm_bits = 11;
         c.pwm_lsb_nanoseconds = 130;
         c.dither_bits = 0;
-        c.led_brightness = 50;
+        c.led_brightness = 20;
         c.slowdown = Some(1);
         c.pixelmapper = vec![NamedPixelMapperType::Rotate(180)];
 
@@ -28,15 +28,17 @@ fn main() {
     };
 
     let (send, recv) = mpsc::channel();
+    let (del_send, del_recv) = mpsc::channel();
     let mqtt = MQTTListener::new(
         env::var("MQTT_HOST")
             .unwrap_or_else(|_| "mqtt.hacklab".to_string())
             .as_str(),
         send,
+        del_send,
     )
     .unwrap();
 
-    let mut display_logic = DisplayLogic::new(recv);
+    let mut display_logic = DisplayLogic::new(recv, del_recv);
     display_logic.add(Box::new(TestScreen));
 
     let (matrix, canvas) = RGBMatrix::new(config, 0).expect("Matrix initialization failed");

@@ -3,7 +3,8 @@ use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay, Windo
 use logic::{screens::*, DisplayLogic};
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering}, mpsc, Arc
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
     },
     thread::sleep,
     time::{Duration, Instant},
@@ -32,14 +33,19 @@ fn main() -> Result<(), core::convert::Infallible> {
     let mut window = Window::new("LED display simulator", &output_settings);
 
     let (_, recv) = mpsc::channel();
-    let mut display_logic = DisplayLogic::new(recv);
+    let (_, recv_del) = mpsc::channel();
+    let mut display_logic = DisplayLogic::new(recv, recv_del);
 
-    display_logic.add(Box::new(TextScreen::with_text("Hello, World!".to_string(), None)));
-    display_logic.add(Box::new(TextScreen::with_text(
-        "some much longer text that goes off the screen".to_string(),
-        None
-    )));
-    display_logic.add(Box::new(TestScreen));
+    // display_logic.add(Box::new(TextScreen::with_text(
+    //     "Hello, World!".to_string(),
+    //     None,
+    // )));
+    // display_logic.add(Box::new(TextScreen::with_text(
+    //     "some much longer text that goes off the screen".to_string(),
+    //     None,
+    // )));
+    // display_logic.add(Box::new(TestScreen));
+    display_logic.add(Box::new(EnvironmentScreen::new(18.9, 404)));
 
     loop {
         if !keep_going.load(Ordering::Relaxed) {

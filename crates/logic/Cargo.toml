@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 embedded-graphics = { workspace = true }
+embedded-layout = "0.4.2"
 log = { workspace = true }

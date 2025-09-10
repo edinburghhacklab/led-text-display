@@ -126,4 +126,8 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TextScreen {
     fn should_remove(&self) -> bool {
         self.show_count == 0
     }
+
+    fn id(&self) -> &str {
+        "text"
+    }
 }

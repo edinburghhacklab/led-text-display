@@ -5,23 +5,31 @@ use embedded_graphics::{
     pixelcolor::Rgb888,
     prelude::RgbColor,
 };
-use logic::screens::{Screen, TextScreen};
+use logic::screens::{EnvironmentScreen, Screen, TextScreen};
 use rpi_led_panel::Canvas;
 use rumqttc::{Client, Event, Incoming, MqttOptions, Publish, QoS, SubscribeFilter};
 
 pub struct MQTTListener {
     mqtt_options: MqttOptions,
     screen_channel: mpsc::Sender<Box<dyn Screen<Canvas>>>,
+    screen_del_channel: mpsc::Sender<String>,
     next_colour: Rgb888,
+
+    last_co2: u32,
+    last_temp: f32,
 }
 
 const TEXT_COLOUR_TOPIC: &str = "display/g1/windowled/colour";
 const TEXT_TOPIC: &str = "display/g1/windowled/text";
 
+const TEMP_TOPIC: &str = "sensor/g1/temperature";
+const CO2_TOPIC: &str = "environment/g1/elsys/co2";
+
 impl MQTTListener {
     pub fn new(
         conn_string: &str,
         screen_channel: mpsc::Sender<Box<dyn Screen<Canvas>>>,
+        screen_del_channel: mpsc::Sender<String>,
     ) -> Result<Self, io::Error> {
         let mut mqtt_options = MqttOptions::new("rpiledmatrix", conn_string, 1883);
         mqtt_options.set_keep_alive(Duration::from_secs(30));
@@ -29,7 +37,10 @@ impl MQTTListener {
         Ok(Self {
             mqtt_options,
             screen_channel,
+            screen_del_channel,
             next_colour: Rgb888::MAGENTA,
+            last_co2: 0,
+            last_temp: 0.0,
         })
     }
 
@@ -40,6 +51,8 @@ impl MQTTListener {
             .subscribe_many([
                 SubscribeFilter::new(TEXT_TOPIC.to_string(), QoS::ExactlyOnce),
                 SubscribeFilter::new(TEXT_COLOUR_TOPIC.to_string(), QoS::ExactlyOnce),
+                SubscribeFilter::new(TEMP_TOPIC.to_string(), QoS::ExactlyOnce),
+                SubscribeFilter::new(CO2_TOPIC.to_string(), QoS::ExactlyOnce),
             ])
             .unwrap();
         loop {
@@ -81,7 +94,34 @@ impl MQTTListener {
 
                 Some(())
             }
+            TEMP_TOPIC => {
+                self.last_temp = payload.parse().ok()?;
+
+                self.refresh_environment_screen();
+
+                Some(())
+            }
+            CO2_TOPIC => {
+                self.last_co2 = payload.parse().ok()?;
+
+                self.refresh_environment_screen();
+
+                Some(())
+            }
             _ => None,
         }
+    }
+
+    fn refresh_environment_screen(&mut self) {
+        self.screen_del_channel
+            .send("environment".to_string())
+            .unwrap();
+
+        self.screen_channel
+            .send(Box::new(EnvironmentScreen::new(
+                self.last_temp,
+                self.last_co2,
+            )))
+            .unwrap();
     }
 }

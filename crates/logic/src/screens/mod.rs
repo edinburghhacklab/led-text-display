@@ -9,6 +9,9 @@ use embedded_graphics::{
 mod text;
 pub use text::*;
 
+mod environment;
+pub use environment::*;
+
 pub trait Screen<D: DrawTarget<Color = Rgb888>>: Send + Debug {
     /// Draw a frame of the screen to the given display
     fn draw(&mut self, display: &mut D) -> Result<(), D::Error>;
@@ -26,6 +29,8 @@ pub trait Screen<D: DrawTarget<Color = Rgb888>>: Send + Debug {
     fn should_remove(&self) -> bool {
         false
     }
+
+    fn id(&self) -> &str;
 }
 
 #[derive(Debug)]
@@ -62,5 +67,9 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TestScreen {
     // always remove after one display
     fn should_remove(&self) -> bool {
         true
+    }
+
+    fn id(&self) -> &str {
+        "test"
     }
 }

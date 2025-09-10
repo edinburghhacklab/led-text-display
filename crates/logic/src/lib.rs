@@ -1,8 +1,4 @@
-use std::{
-    collections::VecDeque,
-    sync::{mpsc, LazyLock},
-    time::Instant,
-};
+use std::{collections::VecDeque, sync::mpsc, time::Instant};
 
 use embedded_graphics::{
     pixelcolor::Rgb888,
@@ -13,18 +9,25 @@ use screens::Screen;
 
 pub mod screens;
 
+mod recolour_image;
+
 /// Handles the main logic for displaying things to the LED.
 /// Primarily, multiplexing between different [`screen::Screen`]s
 pub struct DisplayLogic<D: DrawTarget<Color = Rgb888>> {
     curr_screens: VecDeque<Box<dyn Screen<D>>>,
     last_screen_change: Option<Instant>,
     recv_screen: mpsc::Receiver<Box<dyn Screen<D>>>,
+    recv_del_screen: mpsc::Receiver<String>,
 }
 
-impl<D: DrawTarget<Color = Rgb888>> DisplayLogic<D> {
-    pub fn new(recv_screen: mpsc::Receiver<Box<dyn Screen<D>>>) -> Self {
+impl<D: DrawTarget<Color = Rgb888> + 'static> DisplayLogic<D> {
+    pub fn new(
+        recv_screen: mpsc::Receiver<Box<dyn Screen<D>>>,
+        recv_del_screen: mpsc::Receiver<String>,
+    ) -> Self {
         Self {
             recv_screen,
+            recv_del_screen,
             curr_screens: VecDeque::new(),
             last_screen_change: Default::default(),
         }
@@ -36,7 +39,13 @@ impl<D: DrawTarget<Color = Rgb888>> DisplayLogic<D> {
 
     /// Draw a frame to the given display.
     pub fn draw(&mut self, display: &mut D) -> Result<(), D::Error> {
-        // Add any new screens now if needed
+        // Add/delete screens now if needed
+        let mut iter = self.recv_del_screen.try_iter();
+        while let Some(del_screen) = iter.next() {
+            debug!("deleting screens with id {:?}", del_screen);
+            self.curr_screens.retain(|s| s.id() != del_screen);
+        }
+
         let mut iter = self.recv_screen.try_iter();
         while let Some(new_screen) = iter.next() {
             debug!("got new screen: {:?}", new_screen);
@@ -65,7 +74,7 @@ impl<D: DrawTarget<Color = Rgb888>> DisplayLogic<D> {
                 debug!("removing current screen");
                 self.curr_screens.pop_front();
             } else {
-                debug!("going to next screen");
+                debug!("going to next screen (len = {})", self.curr_screens.len());
                 self.curr_screens.rotate_left(1);
             }
 
