@@ -2,13 +2,14 @@ use std::time::Duration;
 
 use embedded_graphics::{
     image::{Image, ImageRaw},
-    mono_font::{ascii::FONT_10X20, MonoTextStyle},
+    mono_font::MonoTextStyle,
     pixelcolor::Rgb888,
     prelude::*,
     primitives::{PrimitiveStyleBuilder, Rectangle},
     text::{Baseline, Text, TextStyleBuilder},
 };
 use embedded_layout::{layout::linear::LinearLayout, prelude::*};
+use ibm437::IBM437_9X14_REGULAR;
 
 use crate::recolour_image::RecolouredImageRaw;
 
@@ -55,7 +56,7 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for EnvironmentScreen {
             .append(Text::with_text_style(
                 &format!("{}", self.co2),
                 Point::zero(),
-                MonoTextStyle::new(&FONT_10X20, co2_colour),
+                MonoTextStyle::new(&IBM437_9X14_REGULAR, co2_colour),
                 TextStyleBuilder::new().baseline(Baseline::Middle).build(),
             ))
             .append(
@@ -72,7 +73,7 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for EnvironmentScreen {
             .append(Text::with_text_style(
                 &format!("{}", self.temp),
                 Point::zero(),
-                MonoTextStyle::new(&FONT_10X20, Rgb888::WHITE),
+                MonoTextStyle::new(&IBM437_9X14_REGULAR, Rgb888::WHITE),
                 TextStyleBuilder::new().baseline(Baseline::Middle).build(),
             )),
         )
@@ -85,29 +86,6 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for EnvironmentScreen {
         )
         .draw(display)?;
 
-        // Image::new(
-        //     &RecolouredImageRaw::<Rgb888>::new(
-        //         include_bytes!("../../../../assets/temp.raw"),
-        //         ICON_HEIGHT,
-        //         (Rgb888::BLACK, Rgb888::CSS_WHITE),
-        //     ),
-        //     Point::new(
-        //         1,
-        //         display.bounding_box().center().y - (ICON_HEIGHT as i32 / 2),
-        //     ),
-        // )
-        // .draw(display)?;
-
-        // Text::with_text_style(
-        //     &format!("{}", self.co2),
-        //     Point::new(
-        //         (PADDING + ICON_HEIGHT + PADDING + ) as i32,
-        //         display.bounding_box().center().y,
-        //     ),
-        //     MonoTextStyle::new(&FONT_10X20, co2_colour),
-        //     TextStyleBuilder::new().baseline(Baseline::Middle).build(),
-        // )
-        // .draw(display)?;
         Ok(())
     }
 
