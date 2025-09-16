@@ -15,6 +15,7 @@ mod mqtt;
 fn main() {
     env_logger::init();
 
+    // Display config
     let config: RGBMatrixConfig = {
         let mut c = RGBMatrixConfig::default();
         c.hardware_mapping = HardwareMapping::adafruit_hat_pwm();
@@ -31,9 +32,11 @@ fn main() {
         c
     };
 
+    // Cross-thread commuication bits
     let (send, recv) = mpsc::channel();
     let (del_send, del_recv) = mpsc::channel();
     let sleep = Arc::new(AtomicBool::new(false));
+
     let mqtt = MQTTListener::new(
         env::var("MQTT_HOST")
             .unwrap_or_else(|_| "mqtt.hacklab".to_string())
@@ -45,8 +48,11 @@ fn main() {
     .unwrap();
 
     let mut display_logic = DisplayLogic::new(recv, del_recv, sleep);
+
+    // Start off with test screen so we know it's working
     display_logic.add(Box::new(TestScreen));
 
+    // MQTT bits in one thread, drawing in the other
     let (matrix, canvas) = RGBMatrix::new(config, 0).expect("Matrix initialization failed");
     let display = Display::new(matrix, canvas, display_logic);
     thread::scope(move |scope| {

@@ -1,3 +1,6 @@
+//! Scuffed wrapper that makes a black & white image able to be recoloured
+//! Useful for icons
+
 use core::marker::PhantomData;
 
 use embedded_graphics::{

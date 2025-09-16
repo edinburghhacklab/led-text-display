@@ -12,11 +12,14 @@ pub use text::*;
 mod environment;
 pub use environment::*;
 
+/// A screen that can be displayed
 pub trait Screen<D: DrawTarget<Color = Rgb888>>: Send + Debug {
     /// Draw a frame of the screen to the given display
     fn draw(&mut self, display: &mut D) -> Result<(), D::Error>;
 
     /// Returns the desired duration for a single continuous display of this screen
+    /// The screen will always be displayed for at least this amount of time, unless it is deleted from
+    /// somewhere else in the codebase.
     fn single_display_duration(&self, _display: &D) -> Duration {
         Duration::from_secs(5)
     }
@@ -30,11 +33,15 @@ pub trait Screen<D: DrawTarget<Color = Rgb888>>: Send + Debug {
         false
     }
 
+    /// Return an identifier for the current screen.
+    /// Currently only used to delete the screen on request.
     fn id(&self) -> &str;
 }
 
+/// A test screen that just shows some colours
 #[derive(Debug)]
 pub struct TestScreen;
+
 impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TestScreen {
     fn draw(&mut self, display: &mut D) -> Result<(), D::Error> {
         const COLOURS: &[Rgb888] = &[
@@ -64,8 +71,8 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TestScreen {
         Ok(())
     }
 
-    // always remove after one display
     fn should_remove(&self) -> bool {
+        // always remove after one display
         true
     }
 

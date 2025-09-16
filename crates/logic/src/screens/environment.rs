@@ -21,7 +21,7 @@ const CO2_YELLOW_THRESHOLD: u32 = 1000;
 const CO2_RED_THRESHOLD: u32 = 1200;
 
 #[derive(Debug)]
-/// A screen that just displays a line of environment.
+/// A screen that shows the temperature and co2 readings
 pub struct EnvironmentScreen {
     temp: f32,
     co2: u32,

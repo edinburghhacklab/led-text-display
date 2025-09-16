@@ -21,10 +21,19 @@ mod recolour_image;
 /// Handles the main logic for displaying things to the LED.
 /// Primarily, multiplexing between different [`screen::Screen`]s
 pub struct DisplayLogic<D: DrawTarget<Color = Rgb888>> {
+    /// The current list of screens
     curr_screens: VecDeque<Box<dyn Screen<D>>>,
+
+    /// The last time the active screen was changed
     last_screen_change: Option<Instant>,
+
+    // Channels for communicating with the main loop
+    /// Received screens are added to the list of current screens
     recv_screen: mpsc::Receiver<Box<dyn Screen<D>>>,
+    /// When a string is received, any current screens with a matching [`Screen::id()`] are removed.
     recv_del_screen: mpsc::Receiver<String>,
+
+    /// True if display should currently be sleeping.
     sleep: Arc<AtomicBool>,
 }
 

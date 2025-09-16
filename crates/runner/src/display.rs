@@ -1,9 +1,15 @@
 use logic::DisplayLogic;
 use rpi_led_panel::{Canvas, RGBMatrix};
 
+/// Holds main render loop
 pub struct Display {
+    /// The matrix we display on
     matrix: RGBMatrix,
+
+    /// The canvas we render to
     canvas: Box<Canvas>,
+
+    /// The logic/state behind what we render
     logic: DisplayLogic<Canvas>,
 }
 

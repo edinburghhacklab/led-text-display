@@ -1,0 +1,18 @@
+use embedded_graphics::{pixelcolor::Rgb888, prelude::*};
+
+use logic::{screens::*, DisplayLogic};
+
+pub fn add_screens<D: 'static + DrawTarget<Color = Rgb888>>(display_logic: &mut DisplayLogic<D>) {
+    display_logic.add(Box::new(TestScreen));
+
+    // display_logic.add(Box::new(TextScreen::with_text(
+    //     "Hello, World!".to_string(),
+    //     None,
+    // )));
+    // display_logic.add(Box::new(TextScreen::with_text(
+    //     "some much longer text that goes off the screen".to_string(),
+    //     None,
+    // )));
+
+    display_logic.add(Box::new(EnvironmentScreen::new(18.9, 404)));
+}

@@ -12,13 +12,18 @@ use super::Screen;
 #[derive(Debug)]
 /// A screen that just displays a line of text.
 pub struct TextScreen {
+    /// The text to be displayed
     text: String,
+
+    /// The style to use
     style: MonoTextStyle<'static, Rgb888>,
 
+    /// Sliding across the screen
     offset: i32,
     offset_last_incremented: Option<Instant>,
     offset_inc_interval: Duration,
 
+    /// Amount of times the text has already been shown
     show_count: u8,
 }
 
@@ -48,10 +53,13 @@ impl TextScreen {
         )
     }
 
+    /// Get the total width of the text
     fn text_total_width(&self) -> u32 {
         self.style.font.character_size.width * self.text.len() as u32
     }
 
+    /// Get the maximum offset the text should be drawn at for the given display.
+    /// Returns `None` if display is big enough to show the whole text at once.
     fn max_offset_for<D: DrawTarget<Color = Rgb888>>(&self, display: &D) -> Option<u32> {
         let display_width = display.bounding_box().size.width;
         // no max offset when we're not scrolling
@@ -80,6 +88,7 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for TextScreen {
                     .build(),
             )
         } else {
+            // Attempt to increment offset by whatever amount
             if let Some(last_inc) = self.offset_last_incremented {
                 let since_last_inc = Instant::now() - last_inc;
                 if since_last_inc >= self.offset_inc_interval {
