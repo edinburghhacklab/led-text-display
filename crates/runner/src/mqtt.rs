@@ -1,10 +1,19 @@
-use std::{io, str::FromStr, sync::mpsc, time::Duration};
+use std::{
+    io,
+    str::FromStr,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+    time::Duration,
+};
 
 use embedded_graphics::{
     mono_font::{iso_8859_16::FONT_10X20, MonoTextStyle},
     pixelcolor::Rgb888,
     prelude::RgbColor,
 };
+use log::debug;
 use logic::screens::{EnvironmentScreen, Screen, TextScreen};
 use rpi_led_panel::Canvas;
 use rumqttc::{Client, Event, Incoming, MqttOptions, Publish, QoS, SubscribeFilter};
@@ -17,6 +26,8 @@ pub struct MQTTListener {
 
     last_co2: u32,
     last_temp: f32,
+
+    sleep: Arc<AtomicBool>,
 }
 
 const TEXT_COLOUR_TOPIC: &str = "display/g1/windowled/colour";
@@ -25,11 +36,14 @@ const TEXT_TOPIC: &str = "display/g1/windowled/text";
 const TEMP_TOPIC: &str = "sensor/g1/temperature";
 const CO2_TOPIC: &str = "environment/g1/elsys/co2";
 
+const GLOBAL_PRESENCE_TOPIC: &str = "sensor/global/presence";
+
 impl MQTTListener {
     pub fn new(
         conn_string: &str,
         screen_channel: mpsc::Sender<Box<dyn Screen<Canvas>>>,
         screen_del_channel: mpsc::Sender<String>,
+        sleep: Arc<AtomicBool>,
     ) -> Result<Self, io::Error> {
         let mut mqtt_options = MqttOptions::new("rpiledmatrix", conn_string, 1883);
         mqtt_options.set_keep_alive(Duration::from_secs(30));
@@ -41,6 +55,7 @@ impl MQTTListener {
             next_colour: Rgb888::MAGENTA,
             last_co2: 0,
             last_temp: 0.0,
+            sleep,
         })
     }
 
@@ -53,6 +68,7 @@ impl MQTTListener {
                 SubscribeFilter::new(TEXT_COLOUR_TOPIC.to_string(), QoS::ExactlyOnce),
                 SubscribeFilter::new(TEMP_TOPIC.to_string(), QoS::ExactlyOnce),
                 SubscribeFilter::new(CO2_TOPIC.to_string(), QoS::ExactlyOnce),
+                SubscribeFilter::new(GLOBAL_PRESENCE_TOPIC.to_string(), QoS::ExactlyOnce),
             ])
             .unwrap();
         loop {
@@ -69,6 +85,15 @@ impl MQTTListener {
 
     fn attempt_handle_message(&mut self, msg: Publish) -> Option<()> {
         let payload = String::from_utf8(msg.payload.to_vec()).ok()?;
+        if msg.topic.as_str() == GLOBAL_PRESENCE_TOPIC {
+            self.sleep.store(payload == "empty", Ordering::Relaxed);
+            debug!("new sleep state: {}", payload == "empty");
+        }
+
+        if self.sleep.load(Ordering::Relaxed) {
+            return None;
+        }
+
         match msg.topic.as_str() {
             TEXT_COLOUR_TOPIC => {
                 let mut iter = payload.split(",");

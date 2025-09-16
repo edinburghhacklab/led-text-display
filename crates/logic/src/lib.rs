@@ -1,4 +1,11 @@
-use std::{collections::VecDeque, sync::mpsc, time::Instant};
+use std::{
+    collections::VecDeque,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+    time::Instant,
+};
 
 use embedded_graphics::{
     pixelcolor::Rgb888,
@@ -18,18 +25,21 @@ pub struct DisplayLogic<D: DrawTarget<Color = Rgb888>> {
     last_screen_change: Option<Instant>,
     recv_screen: mpsc::Receiver<Box<dyn Screen<D>>>,
     recv_del_screen: mpsc::Receiver<String>,
+    sleep: Arc<AtomicBool>,
 }
 
 impl<D: DrawTarget<Color = Rgb888> + 'static> DisplayLogic<D> {
     pub fn new(
         recv_screen: mpsc::Receiver<Box<dyn Screen<D>>>,
         recv_del_screen: mpsc::Receiver<String>,
+        sleep: Arc<AtomicBool>,
     ) -> Self {
         Self {
             recv_screen,
             recv_del_screen,
             curr_screens: VecDeque::new(),
             last_screen_change: Default::default(),
+            sleep,
         }
     }
     /// Add the given [`DisplayedScreen`] to the rotation
@@ -39,6 +49,11 @@ impl<D: DrawTarget<Color = Rgb888> + 'static> DisplayLogic<D> {
 
     /// Draw a frame to the given display.
     pub fn draw(&mut self, display: &mut D) -> Result<(), D::Error> {
+        if self.sleep.load(Ordering::Relaxed) {
+            display.clear(Rgb888::BLACK)?;
+            return Ok(());
+        }
+
         // Add/delete screens now if needed
         let mut iter = self.recv_del_screen.try_iter();
         while let Some(del_screen) = iter.next() {

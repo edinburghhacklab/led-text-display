@@ -9,3 +9,4 @@ rpi-led-panel = "0.7.0"
 logic = { path = "../logic" }
 rumqttc = {version = "0.24.0", features = ["url"], default-features=false}
 env_logger = { workspace = true }
+log = { workspace = true }

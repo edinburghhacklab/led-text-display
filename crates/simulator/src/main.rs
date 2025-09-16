@@ -34,7 +34,8 @@ fn main() -> Result<(), core::convert::Infallible> {
 
     let (_, recv) = mpsc::channel();
     let (_, recv_del) = mpsc::channel();
-    let mut display_logic = DisplayLogic::new(recv, recv_del);
+    let _sleep = Arc::new(AtomicBool::new(false));
+    let mut display_logic = DisplayLogic::new(recv, recv_del, _sleep);
 
     // display_logic.add(Box::new(TextScreen::with_text(
     //     "Hello, World!".to_string(),

@@ -1,4 +1,8 @@
-use std::{env, sync::mpsc, thread};
+use std::{
+    env,
+    sync::{atomic::AtomicBool, mpsc, Arc},
+    thread,
+};
 
 use display::Display;
 use logic::{screens::TestScreen, DisplayLogic};
@@ -29,16 +33,18 @@ fn main() {
 
     let (send, recv) = mpsc::channel();
     let (del_send, del_recv) = mpsc::channel();
+    let sleep = Arc::new(AtomicBool::new(false));
     let mqtt = MQTTListener::new(
         env::var("MQTT_HOST")
             .unwrap_or_else(|_| "mqtt.hacklab".to_string())
             .as_str(),
         send,
         del_send,
+        sleep.clone(),
     )
     .unwrap();
 
-    let mut display_logic = DisplayLogic::new(recv, del_recv);
+    let mut display_logic = DisplayLogic::new(recv, del_recv, sleep);
     display_logic.add(Box::new(TestScreen));
 
     let (matrix, canvas) = RGBMatrix::new(config, 0).expect("Matrix initialization failed");
