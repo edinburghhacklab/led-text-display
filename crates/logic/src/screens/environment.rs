@@ -54,7 +54,7 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for EnvironmentScreen {
                 Point::zero(),
             ))
             .append(Text::with_text_style(
-                &format!("{}", self.co2),
+                &format!("{}ppm", self.co2),
                 Point::zero(),
                 MonoTextStyle::new(&IBM437_9X14_REGULAR, co2_colour),
                 TextStyleBuilder::new().baseline(Baseline::Middle).build(),
@@ -71,7 +71,7 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for EnvironmentScreen {
                 Point::zero(),
             ))
             .append(Text::with_text_style(
-                &format!("{}", self.temp),
+                &format!("{:.1}°C", self.temp),
                 Point::zero(),
                 MonoTextStyle::new(&IBM437_9X14_REGULAR, Rgb888::WHITE),
                 TextStyleBuilder::new().baseline(Baseline::Middle).build(),
