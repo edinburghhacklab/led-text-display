@@ -12,6 +12,9 @@ pub use text::*;
 mod environment;
 pub use environment::*;
 
+mod hate;
+pub use hate::*;
+
 /// A screen that can be displayed
 pub trait Screen<D: DrawTarget<Color = Rgb888>>: Send + Debug {
     /// Draw a frame of the screen to the given display

@@ -14,7 +14,7 @@ use embedded_graphics::{
     prelude::RgbColor,
 };
 use log::debug;
-use logic::screens::{EnvironmentScreen, Screen, TextScreen};
+use logic::screens::{EnvironmentScreen, HateScreen, Screen, TextScreen};
 use rpi_led_panel::Canvas;
 use rumqttc::{Client, Event, Incoming, MqttOptions, Publish, QoS, SubscribeFilter};
 
@@ -47,6 +47,8 @@ const CO2_TOPIC: &str = "environment/g1/elsys/co2";
 
 const GLOBAL_PRESENCE_TOPIC: &str = "sensor/global/presence";
 
+const CATASTROPHE_LEVER_TOPIC: &str = "catastrophe/state/lever";
+
 impl MQTTListener {
     /// Create a new listener for the given MQTT server, communicating with the logic loop via the given channels.
     pub fn new(
@@ -72,7 +74,7 @@ impl MQTTListener {
     /// Run the main MQTT loop, processing events and sending the results to the logic loop.
     pub fn main_loop(mut self) -> ! {
         // Setup
-        let (client, mut connection) = Client::new(self.mqtt_options.clone(), 10);
+        let (mut client, mut connection) = Client::new(self.mqtt_options.clone(), 10);
         client
             .subscribe_many([
                 SubscribeFilter::new(TEXT_TOPIC.to_string(), QoS::ExactlyOnce),
@@ -80,6 +82,7 @@ impl MQTTListener {
                 SubscribeFilter::new(TEMP_TOPIC.to_string(), QoS::ExactlyOnce),
                 SubscribeFilter::new(CO2_TOPIC.to_string(), QoS::ExactlyOnce),
                 SubscribeFilter::new(GLOBAL_PRESENCE_TOPIC.to_string(), QoS::ExactlyOnce),
+                SubscribeFilter::new(CATASTROPHE_LEVER_TOPIC.to_string(), QoS::ExactlyOnce),
             ])
             .unwrap();
 
@@ -91,13 +94,13 @@ impl MQTTListener {
                     continue;
                 };
 
-                let _ = self.attempt_handle_message(msg);
+                let _ = self.attempt_handle_message(msg, &mut client);
             }
         }
     }
 
     /// Attempt to handle a single message.
-    fn attempt_handle_message(&mut self, msg: Publish) -> Option<()> {
+    fn attempt_handle_message(&mut self, msg: Publish, client: &mut Client) -> Option<()> {
         let payload = String::from_utf8(msg.payload.to_vec()).ok()?;
 
         // If asleep, try not to process so much
@@ -153,12 +156,33 @@ impl MQTTListener {
 
                 Some(())
             }
+
+            CATASTROPHE_LEVER_TOPIC => {
+                self.screen_del_channel.send("hate".to_string()).unwrap();
+                if payload == "on" {
+                    self.screen_channel.send(Box::new(HateScreen::new())).ok()?;
+                    client
+                        .publish("display/g1/leds", QoS::AtLeastOnce, false, "red")
+                        .ok()?;
+                } else {
+                    client
+                        .publish("display/g1/leds", QoS::AtLeastOnce, false, "rainbow")
+                        .ok()?;
+                }
+
+                Some(())
+            }
+
             _ => None,
         }
     }
 
     /// Delete and replace the environment screen, based on updated info in `self`
     fn refresh_environment_screen(&mut self) {
+        if self.last_temp < 0.001 || self.last_co2 == 0 {
+            return;
+        }
+
         self.screen_del_channel
             .send("environment".to_string())
             .unwrap();
