@@ -73,7 +73,7 @@ impl<D: DrawTarget<Color = Rgb888> + 'static> DisplayLogic<D> {
         let mut iter = self.recv_screen.try_iter();
         while let Some(new_screen) = iter.next() {
             debug!("got new screen: {:?}", new_screen);
-            self.curr_screens.push_back(new_screen);
+            self.curr_screens.push_front(new_screen);
         }
 
         let Some(screen) = self.curr_screens.front_mut() else {
