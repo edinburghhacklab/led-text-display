@@ -39,6 +39,11 @@ pub trait Screen<D: DrawTarget<Color = Rgb888>>: Send + Debug {
     /// Return an identifier for the current screen.
     /// Currently only used to delete the screen on request.
     fn id(&self) -> &str;
+
+    /// Whether this type of screen should immediately be moved to the front when added.
+    fn grab_attention(&self) -> bool {
+        true
+    }
 }
 
 /// A test screen that just shows some colours

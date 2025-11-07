@@ -67,13 +67,25 @@ impl<D: DrawTarget<Color = Rgb888> + 'static> DisplayLogic<D> {
         let mut iter = self.recv_del_screen.try_iter();
         while let Some(del_screen) = iter.next() {
             debug!("deleting screens with id {:?}", del_screen);
+            let deleted_front = self
+                .curr_screens
+                .front()
+                .is_some_and(|s| s.id() == del_screen);
             self.curr_screens.retain(|s| s.id() != del_screen);
+            if deleted_front {
+                self.last_screen_change = Some(Instant::now());
+            }
         }
 
         let mut iter = self.recv_screen.try_iter();
         while let Some(new_screen) = iter.next() {
             debug!("got new screen: {:?}", new_screen);
-            self.curr_screens.push_front(new_screen);
+            let grab = new_screen.grab_attention();
+            self.curr_screens.push_back(new_screen);
+            if grab {
+                self.curr_screens.rotate_left(self.curr_screens.len() - 1);
+                self.last_screen_change = Some(Instant::now());
+            }
         }
 
         let Some(screen) = self.curr_screens.front_mut() else {

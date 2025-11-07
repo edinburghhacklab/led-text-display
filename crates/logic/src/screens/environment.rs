@@ -102,4 +102,9 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for EnvironmentScreen {
     fn id(&self) -> &str {
         "environment"
     }
+
+    /// Whether this type of screen should immediately be moved to the front when added.
+    fn grab_attention(&self) -> bool {
+        false
+    }
 }

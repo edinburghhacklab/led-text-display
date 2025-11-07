@@ -4,7 +4,7 @@ use embedded_graphics::{
     mono_font::{ascii::FONT_10X20, MonoTextStyle},
     pixelcolor::Rgb888,
     prelude::*,
-    text::{Alignment, Baseline, Text, TextStyleBuilder},
+    text::{renderer::TextRenderer, Alignment, Baseline, Text, TextStyleBuilder},
 };
 
 use super::Screen;
@@ -55,7 +55,11 @@ impl TextScreen {
 
     /// Get the total width of the text
     fn text_total_width(&self) -> u32 {
-        self.style.font.character_size.width * self.text.len() as u32
+        self.style
+            .measure_string(&self.text, Point::zero(), Baseline::Middle)
+            .bounding_box
+            .size
+            .width
     }
 
     /// Get the maximum offset the text should be drawn at for the given display.
