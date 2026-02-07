@@ -23,13 +23,13 @@ const CO2_RED_THRESHOLD: u32 = 1200;
 #[derive(Debug)]
 /// A screen that shows the temperature and co2 readings
 pub struct EnvironmentScreen {
-    temp: f32,
-    co2: u32,
+    temp: Option<f32>,
+    co2: Option<u32>,
 }
 
 impl EnvironmentScreen {
     /// Show the given environment in a particular style.
-    pub fn new(temp: f32, co2: u32) -> Self {
+    pub fn new(temp: Option<f32>, co2: Option<u32>) -> Self {
         Self { temp, co2 }
     }
 }
@@ -39,11 +39,22 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for EnvironmentScreen {
         display.clear(Rgb888::BLACK)?;
 
         let co2_colour = match self.co2 {
-            ..CO2_YELLOW_THRESHOLD => Rgb888::GREEN,
-            CO2_YELLOW_THRESHOLD..CO2_RED_THRESHOLD => Rgb888::YELLOW,
+            None => Rgb888::WHITE,
+            Some(..CO2_YELLOW_THRESHOLD) => Rgb888::GREEN,
+            Some(CO2_YELLOW_THRESHOLD..CO2_RED_THRESHOLD) => Rgb888::YELLOW,
             _ => Rgb888::RED,
         };
 
+        let co2_text = if let Some(co2) = self.co2 {
+            format!("{}ppm", co2)
+        } else {
+            "???".to_string()
+        };
+        let temp_text = if let Some(temp) = self.temp {
+            format!("{:.1}°C", temp)
+        } else {
+            "???".to_string()
+        };
         LinearLayout::horizontal(
             Chain::new(Image::new(
                 &RecolouredImageRaw::<Rgb888>::new(
@@ -54,7 +65,7 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for EnvironmentScreen {
                 Point::zero(),
             ))
             .append(Text::with_text_style(
-                &format!("{}ppm", self.co2),
+                &co2_text,
                 Point::zero(),
                 MonoTextStyle::new(&IBM437_9X14_REGULAR, co2_colour),
                 TextStyleBuilder::new().baseline(Baseline::Middle).build(),
@@ -71,7 +82,7 @@ impl<D: DrawTarget<Color = Rgb888>> Screen<D> for EnvironmentScreen {
                 Point::zero(),
             ))
             .append(Text::with_text_style(
-                &format!("{:.1}°C", self.temp),
+                &temp_text,
                 Point::zero(),
                 MonoTextStyle::new(&IBM437_9X14_REGULAR, Rgb888::WHITE),
                 TextStyleBuilder::new().baseline(Baseline::Middle).build(),

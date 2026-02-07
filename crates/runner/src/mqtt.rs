@@ -5,7 +5,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         mpsc, Arc,
     },
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use embedded_graphics::{
@@ -13,10 +13,10 @@ use embedded_graphics::{
     pixelcolor::Rgb888,
     prelude::RgbColor,
 };
-use log::debug;
+use log::{debug, warn};
 use logic::screens::{EnvironmentScreen, HateScreen, Screen, TextScreen};
 use rpi_led_panel::Canvas;
-use rumqttc::{Client, Event, Incoming, MqttOptions, Publish, QoS, SubscribeFilter};
+use rumqttc::{Client, Event, Incoming, MqttOptions, Outgoing, Publish, QoS, SubscribeFilter};
 
 /// Deals with listening on the MQTT bus, and sending messages to the logic based off of that.
 pub struct MQTTListener {
@@ -31,8 +31,8 @@ pub struct MQTTListener {
     next_colour: Rgb888,
 
     /// For environment screen
-    last_co2: u32,
-    last_temp: f32,
+    last_co2: Option<(u32, SystemTime)>,
+    last_temp: Option<(f32, SystemTime)>,
 
     sleep: Arc<AtomicBool>,
 }
@@ -46,8 +46,11 @@ const TEMP_TOPIC: &str = "environment/g1/elsys/temperature";
 const CO2_TOPIC: &str = "environment/g1/elsys/co2";
 
 const GLOBAL_PRESENCE_TOPIC: &str = "sensor/global/presence";
+const CHECK_TIME_EXPIRY_TOPIC: &str = "timesignal/300";
 
 const CATASTROPHE_LEVER_TOPIC: &str = "catastrophe/state/lever";
+
+const ENVIRONMENT_DATA_TIMEOUT: Duration = Duration::from_mins(2);
 
 impl MQTTListener {
     /// Create a new listener for the given MQTT server, communicating with the logic loop via the given channels.
@@ -65,8 +68,8 @@ impl MQTTListener {
             screen_channel,
             screen_del_channel,
             next_colour: Rgb888::MAGENTA,
-            last_co2: 0,
-            last_temp: 0.0,
+            last_co2: None,
+            last_temp: None,
             sleep,
         })
     }
@@ -82,19 +85,25 @@ impl MQTTListener {
                 SubscribeFilter::new(TEMP_TOPIC.to_string(), QoS::ExactlyOnce),
                 SubscribeFilter::new(CO2_TOPIC.to_string(), QoS::ExactlyOnce),
                 SubscribeFilter::new(GLOBAL_PRESENCE_TOPIC.to_string(), QoS::ExactlyOnce),
+                SubscribeFilter::new(CHECK_TIME_EXPIRY_TOPIC.to_string(), QoS::AtMostOnce),
                 SubscribeFilter::new(CATASTROPHE_LEVER_TOPIC.to_string(), QoS::ExactlyOnce),
             ])
             .unwrap();
+
+        self.refresh_environment_screen();
 
         loop {
             // Process messages
             for notification in connection.iter() {
                 let notification = notification.unwrap();
-                let Event::Incoming(Incoming::Publish(msg)) = notification else {
-                    continue;
-                };
-
-                let _ = self.attempt_handle_message(msg, &mut client);
+                match notification {
+                    Event::Incoming(Incoming::Publish(msg)) => {
+                        let _ = self.attempt_handle_message(msg, &mut client);
+                    }
+                    Event::Incoming(Incoming::Disconnect)
+                    | Event::Outgoing(Outgoing::Disconnect) => panic!("disconnect"),
+                    _ => continue,
+                }
             }
         }
     }
@@ -143,16 +152,57 @@ impl MQTTListener {
 
             // Environment display
             TEMP_TOPIC => {
-                self.last_temp = payload.parse().ok()?;
+                let val: f32 = payload.parse().ok()?;
+                debug!("received new temperature reading: {val}");
+                if val < 0.001 {
+                    debug!("rejecting faulty temperature reading");
+                    return Some(());
+                }
+
+                self.last_temp = Some((val, SystemTime::now()));
 
                 self.refresh_environment_screen();
 
                 Some(())
             }
             CO2_TOPIC => {
-                self.last_co2 = payload.parse().ok()?;
+                let val: u32 = payload.parse().ok()?;
+                debug!("received new co2 reading: {val}");
+                if val == 0 {
+                    debug!("rejecting faulty co2 reading");
+                    return Some(());
+                }
+                self.last_co2 = Some((val, SystemTime::now()));
 
                 self.refresh_environment_screen();
+
+                Some(())
+            }
+
+            CHECK_TIME_EXPIRY_TOPIC => {
+                debug!("checking expiry of temp/co2 data");
+
+                let mut refresh = false;
+                if self.last_temp.is_some_and(|x| {
+                    SystemTime::now().duration_since(x.1).unwrap() > ENVIRONMENT_DATA_TIMEOUT
+                }) {
+                    debug!("temp expired");
+                    self.last_temp = None;
+                    refresh = true;
+                }
+
+                if self.last_co2.is_some_and(|x| {
+                    SystemTime::now().duration_since(x.1).unwrap() > ENVIRONMENT_DATA_TIMEOUT
+                }) {
+                    debug!("co2 expired");
+                    self.last_co2 = None;
+                    refresh = true;
+                }
+
+                if refresh {
+                    warn!("one or more data points expired");
+                    self.refresh_environment_screen();
+                }
 
                 Some(())
             }
@@ -179,18 +229,14 @@ impl MQTTListener {
 
     /// Delete and replace the environment screen, based on updated info in `self`
     fn refresh_environment_screen(&mut self) {
-        if self.last_temp < 0.001 || self.last_co2 == 0 {
-            return;
-        }
-
         self.screen_del_channel
             .send("environment".to_string())
             .unwrap();
 
         self.screen_channel
             .send(Box::new(EnvironmentScreen::new(
-                self.last_temp,
-                self.last_co2,
+                self.last_temp.map(|x| x.0),
+                self.last_co2.map(|x| x.0),
             )))
             .unwrap();
     }
