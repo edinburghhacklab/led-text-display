@@ -42,7 +42,7 @@ const TEXT_COLOUR_TOPIC: &str = "display/g1/windowled/colour";
 const TEXT_TOPIC: &str = "display/g1/windowled/text";
 
 // Topics for environment screen
-const TEMP_TOPIC: &str = "sensor/g1/temperature";
+const TEMP_TOPIC: &str = "environment/g1/elsys/temperature";
 const CO2_TOPIC: &str = "environment/g1/elsys/co2";
 
 const GLOBAL_PRESENCE_TOPIC: &str = "sensor/global/presence";
